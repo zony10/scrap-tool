@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="废钢估价">
+    <link rel="apple-touch-icon" href="logo.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>废钢验货平均价智能估算系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: pan-y; 
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .main-content { flex: 1; }
+        
+        /* 授权遮罩层 */
+        #authOverlay {
+            position: fixed; inset: 0; background: #f3f4f6; z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .auth-box {
+            background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            width: 90%; max-width: 400px; text-align: center;
+        }
+
+        .trailer-grid {
+            display: grid; width: 100%; height: 100%;
+            border-top: 3px solid #374151; border-bottom: 3px solid #374151; border-left: 3px solid #374151;
+            background-color: #f3f4f6; touch-action: none; 
+        }
+        .grid-cell {
+            border-right: 1px solid #9ca3af; border-bottom: 1px solid #9ca3af;
+            cursor: crosshair; transition: background-color 0.1s;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; font-weight: bold; color: #1f2937; box-sizing: border-box; overflow: hidden;
+        }
+        .grid-cell.selected-preview { background-color: #93c5fd !important; opacity: 0.8; }
+
+        .truck-cab {
+            width: 25%; max-width: 120px; height: 100%;
+            background-color: #3b82f6; border: 3px solid #1e3a8a; border-radius: 0 20px 10px 0;
+            position: relative; box-shadow: 4px 4px 0px rgba(0,0,0,0.1); flex-shrink: 0;
+        }
+        .truck-window {
+            position: absolute; top: 15%; right: 15%; width: 50%; height: 40%;
+            background-color: #93c5fd; border: 2px solid #1e3a8a; border-radius: 0 10px 0 0;
+        }
+        .dot-wheel {
+            width: 16px; height: 16px; background-color: #1f2937; border-radius: 50%;
+            position: absolute; bottom: -8px; transform: translateX(-50%); box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        #truckViewBox { height: 200px; width: 100%; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
+        #truckInner { width: 100%; height: 100%; display: flex; align-items: end; position: relative; padding-bottom: 20px; }
+        
+        @media (min-width: 768px) { #truckViewBox { height: 350px; } }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans" style="display: none;" id="mainBody">
+
+    <!-- 授权验证界面 -->
+    <div id="authOverlay">
+        <div class="auth-box border-t-4 border-blue-500">
+            <h2 class="text-xl font-bold text-gray-800 mb-2">系统授权认证</h2>
+            <p class="text-sm text-gray-500 mb-6">未经授权的设备无法访问此系统</p>
+            
+            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-6 text-left">
+                <span class="text-xs text-gray-400 block mb-1">本机设备码 (请发给管理员获取授权)</span>
+                <div class="flex items-center justify-between">
+                    <span class="font-mono text-lg font-bold text-blue-600 tracking-wider" id="displayDeviceId">加载中...</span>
+                    <button onclick="copyDeviceId()" id="copyBtn" class="ml-2 px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-600 text-xs font-bold rounded shadow-sm transition-colors border border-blue-200">复制</button>
+                </div>
+            </div>
+
+            <input type="text" id="authCodeInput" placeholder="请输入管理员提供的授权码" class="w-full border-2 border-gray-300 rounded-lg px-4 py-3 mb-4 text-center text-sm font-bold tracking-widest focus:border-blue-500 focus:outline-none uppercase">
+            
+            <button onclick="_0xVerify()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-lg shadow-md transition-colors">验证并绑定设备</button>
+        </div>
+        
+        <div class="mt-6 text-xs text-gray-500 text-center">
+            版权所有 &copy; 2026 zonia_fish
+            <div class="mt-3">
+                <p class="text-sm text-red-500 font-bold bg-red-50 px-4 py-2 rounded-full border border-red-100 inline-block shadow-sm">定价：9.9元，付款后联系分发人获取授权码</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主界面内容 -->
+    <div class="main-content p-2 md:p-6 pb-10">
+        <div class="max-w-6xl mx-auto space-y-4 md:space-y-6">
+            
+            <header class="bg-white rounded-xl shadow-sm p-4 md:p-6 flex items-center justify-between border-l-4 border-blue-500">
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold text-gray-800">废钢验货估价系统</h1>
+                    <p class="text-gray-500 mt-1 text-xs md:text-sm">已授权版本</p>
+                </div>
+                <button onclick="resetGrid()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">清空重置</button>
+            </header>
+
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
+                <div class="bg-white rounded-xl shadow-sm p-4 md:p-6 lg:col-span-1 flex flex-col space-y-4">
+                    <h2 class="text-base font-bold border-b pb-2">参数设置</h2>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">车牌号 <span class="text-xs text-gray-400 font-normal">可选</span></label>
+                            <input type="text" id="plateNumber" placeholder="例如: 川UA0356" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">整车净重 (吨) <span class="text-xs text-gray-400 font-normal">可选</span></label>
+                            <input type="number" id="totalWeight" placeholder="例如: 32.5" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">层数 (行)</label>
+                                <input type="number" id="gridRows" value="6" min="1" max="20" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">块数 (列)</label>
+                                <input type="number" id="gridCols" value="6" min="1" max="30" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="generateGrid()" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 font-bold py-2 px-4 rounded-lg text-sm transition-colors">应用网格设置</button>
+                    <div class="pt-4 border-t mt-2">
+                        <button onclick="saveRecord()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow transition-colors flex items-center justify-center space-x-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                            <span>保存估算记录</span>
+                        </button>
+                        <p id="saveToast" class="text-green-600 text-xs text-center mt-2 opacity-0 transition-opacity">✅ 已保存到底部记录中</p>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-3 flex flex-col space-y-4 md:space-y-6">
+                    <div class="bg-white rounded-xl shadow-sm p-4 pt-10 pb-4 relative overflow-hidden flex flex-col justify-center min-h-[250px]">
+                        <div id="truckViewBox">
+                            <div id="truckInner" class="px-2">
+                                <div class="flex-grow h-full relative" id="trailerContainer">
+                                    <div id="grid" class="trailer-grid"></div>
+                                    <div class="dot-wheel" style="left: 15%;"></div>
+                                    <div class="dot-wheel" style="left: 30%;"></div>
+                                    <div class="dot-wheel" style="left: 45%;"></div>
+                                </div>
+                                <div class="truck-cab ml-1 md:ml-2">
+                                    <div class="truck-window"></div>
+                                    <div class="dot-wheel" style="left: 20%;"></div>
+                                    <div class="dot-wheel" style="left: 80%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm p-4 flex flex-col sm:flex-row gap-4">
+                        <div class="flex-shrink-0 bg-blue-50 rounded-xl p-4 flex flex-col items-center justify-center border border-blue-100 sm:w-1/3">
+                            <span class="text-blue-600 font-semibold mb-1 text-sm">加权平均价</span>
+                            <div class="flex items-baseline space-x-1">
+                                <span class="text-3xl font-extrabold text-blue-700" id="avgPriceDisplay">0</span>
+                                <span class="text-gray-500 font-medium">元</span>
+                            </div>
+                            <span class="text-xs text-gray-500 mt-1">已标区域: <span id="assignedRatio">0%</span></span>
+                        </div>
+                        <div class="flex-grow overflow-x-auto">
+                            <table class="w-full text-left text-xs md:text-sm text-gray-600 min-w-[280px]">
+                                <thead>
+                                    <tr class="border-b bg-gray-50 text-gray-700">
+                                        <th class="py-2 px-2">颜色</th>
+                                        <th class="py-2 px-2">单价</th>
+                                        <th class="py-2 px-2">网格占比</th>
+                                        <th class="py-2 px-2 weight-col" style="display:none;">估算重量</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="priceListBody">
+                                    <tr><td colspan="4" class="py-4 text-center text-gray-400">请在上方车厢内滑动框选</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm p-4 md:p-6 mt-6">
+                <h2 class="text-lg font-bold text-gray-800 border-b pb-2 mb-4 flex items-center justify-between">
+                    <span>估算历史记录</span>
+                    <span class="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-1 rounded">自动保留近3天</span>
+                </h2>
+                <div id="historyList" class="space-y-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="py-4 text-center text-[10px] text-gray-400">
+        版权所有 &copy; 2026 zonia_fish
+    </footer>
+
+    <!-- 输入价格弹窗 -->
+    <div id="priceModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-11/12 max-w-sm">
+            <h3 class="text-lg font-bold text-gray-800 mb-1">设定废钢单价</h3>
+            <p class="text-xs text-gray-500 mb-4">输入选中区域的价格 (元)</p>
+            <input type="number" id="priceInput" class="w-full border-2 border-blue-300 rounded-lg px-4 py-3 text-xl focus:outline-none focus:border-blue-500 font-bold text-gray-800 mb-6 text-center" placeholder="如: 2100">
+            <div class="flex space-x-3">
+                <button onclick="cancelSelection()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-2 rounded-xl">取消</button>
+                <button onclick="confirmPrice()" class="flex-1 bg-blue-500 text-white font-bold py-2 rounded-xl shadow-md shadow-blue-200">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 授权验证模块
+        // ==========================================
+        const _0xSalt = "ZoniaFish2026_CF";
+        let _0xDevice = "";
+
+        function _0xGenFP() {
+            const screen = window.screen.width + 'x' + window.screen.height;
+            const core = navigator.hardwareConcurrency || 2;
+            const lang = navigator.language;
+            const raw = screen + core + lang;
+            let hash = 0;
+            for (let i = 0; i < raw.length; i++) {
+                hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+                hash |= 0; 
+            }
+            return "CF-" + Math.abs(hash).toString(16).toUpperCase().substring(0, 6).padStart(6, '0');
+        }
+
+        function _0xCheck(id, code) {
+            try {
+                let exp = "";
+                for (let i = 0; i < id.length; i++) {
+                    const charCode = id.charCodeAt(i) ^ _0xSalt.charCodeAt(i % _0xSalt.length);
+                    exp += String.fromCharCode(charCode);
+                }
+                const expected = btoa(exp).replace(/=/g, '').toUpperCase();
+                return code === expected;
+            } catch(e) { return false; }
+        }
+
+        function _0xInitAuth() {
+            document.getElementById('mainBody').style.display = 'block';
+            _0xDevice = _0xGenFP();
+            document.getElementById('displayDeviceId').innerText = _0xDevice;
+            if (localStorage.getItem('CF_AUTH_STATUS') === 'authorized_zonia') {
+                document.getElementById('authOverlay').style.display = 'none';
+                generateGrid(); 
+                renderHistory();
+            }
+        }
+
+        function _0xVerify() {
+            const inputCode = document.getElementById('authCodeInput').value.trim().toUpperCase();
+            if (_0xCheck(_0xDevice, inputCode)) {
+                localStorage.setItem('CF_AUTH_STATUS', 'authorized_zonia');
+                alert("授权成功！欢迎使用。");
+                document.getElementById('authOverlay').style.display = 'none';
+                generateGrid();
+                renderHistory();
+            } else {
+                alert("授权码错误，请核对后重试。");
+            }
+        }
+
+        function copyDeviceId() {
+            const textToCopy = document.getElementById('displayDeviceId').innerText;
+            const textArea = document.createElement("textarea");
+            textArea.value = textToCopy;
+            textArea.style.position = "fixed";
+            textArea.style.opacity = "0";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                const btn = document.getElementById('copyBtn');
+                btn.innerText = '已复制!';
+                setTimeout(() => { btn.innerText = '复制'; }, 2000);
+            } catch (err) { alert('复制失败'); }
+            document.body.removeChild(textArea);
+        }
+
+        // ==========================================
+        // 主业务逻辑
+        // ==========================================
+        let rows = 6, cols = 6;
+        let gridData = [];
+        let isSelecting = false;
+        let startCell = null;
+        let currentSelectionBox = { minR: -1, maxR: -1, minC: -1, maxC: -1 };
+        let currentCalcData = { avgPrice: '0', details: [] };
+
+        const colorPalette = ['#fecaca','#bbf7d0','#bfdbfe','#fef08a','#e9d5ff','#fed7aa','#99f6e4','#fbcfe8','#d9f99d','#e5e7eb'];
+        let priceColorMap = {};
+        let colorIndex = 0;
+
+        const gridContainer = document.getElementById('grid');
+        const priceModal = document.getElementById('priceModal');
+        const priceInput = document.getElementById('priceInput');
+        const avgPriceDisplay = document.getElementById('avgPriceDisplay');
+        const assignedRatioDisplay = document.getElementById('assignedRatio');
+        const priceListBody = document.getElementById('priceListBody');
+        const totalWeightInput = document.getElementById('totalWeight');
+        const plateNumberInput = document.getElementById('plateNumber');
+
+        function generateGrid() {
+            rows = parseInt(document.getElementById('gridRows').value) || 6;
+            cols = parseInt(document.getElementById('gridCols').value) || 6;
+            gridContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+            gridContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            gridContainer.innerHTML = '';
+            gridData = [];
+            for (let r = 0; r < rows; r++) {
+                gridData[r] = [];
+                for (let c = 0; c < cols; c++) {
+                    gridData[r][c] = { price: null, color: null };
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    cell.dataset.row = r; cell.dataset.col = c;
+                    cell.id = `cell-${r}-${c}`;
+                    cell.addEventListener('mousedown', handlePointerDown);
+                    cell.addEventListener('mouseenter', handlePointerMove);
+                    gridContainer.appendChild(cell);
+                }
+            }
+            updateCalculations();
+        }
+
+        function resetGrid() { priceColorMap = {}; colorIndex = 0; generateGrid(); }
+
+        function handlePointerDown(e) {
+            e.preventDefault();
+            let target = e.target;
+            if (e.type === 'touchstart') target = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+            if (!target || !target.classList.contains('grid-cell')) return;
+            isSelecting = true;
+            startCell = { r: parseInt(target.dataset.row), c: parseInt(target.dataset.col) };
+            updateSelectionBox(startCell.r, startCell.c);
+            renderSelectionPreview();
+        }
+
+        function handlePointerMove(e) {
+            if (!isSelecting) return;
+            e.preventDefault();
+            let target = e.target;
+            if (e.type === 'touchmove') target = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+            if (!target || !target.classList.contains('grid-cell')) return;
+            updateSelectionBox(parseInt(target.dataset.row), parseInt(target.dataset.col));
+            renderSelectionPreview();
+        }
+
+        function handlePointerUp(e) {
+            if (!isSelecting) return;
+            isSelecting = false;
+            if (currentSelectionBox.minR !== -1) showModal();
+        }
+
+        document.addEventListener('mouseup', handlePointerUp);
+        document.addEventListener('touchend', handlePointerUp);
+        gridContainer.addEventListener('touchstart', handlePointerDown, {passive: false});
+        gridContainer.addEventListener('touchmove', handlePointerMove, {passive: false});
+
+        function updateSelectionBox(currR, currC) {
+            currentSelectionBox = {
+                minR: Math.min(startCell.r, currR), maxR: Math.max(startCell.r, currR),
+                minC: Math.min(startCell.c, currC), maxC: Math.max(startCell.c, currC)
+            };
+        }
+
+        function renderSelectionPreview() {
+            clearSelectionPreview();
+            for (let r = currentSelectionBox.minR; r <= currentSelectionBox.maxR; r++) {
+                for (let c = currentSelectionBox.minC; c <= currentSelectionBox.maxC; c++) {
+                    const cell = document.getElementById(`cell-${r}-${c}`);
+                    if (cell) cell.classList.add('selected-preview');
+                }
+            }
+        }
+
+        function clearSelectionPreview() {
+            document.querySelectorAll('.selected-preview').forEach(c => c.classList.remove('selected-preview'));
+        }
+
+        function showModal() {
+            priceInput.value = ''; priceModal.classList.remove('hidden');
+            setTimeout(() => priceInput.focus(), 100);
+        }
+
+        function cancelSelection() {
+            priceModal.classList.add('hidden');
+            currentSelectionBox = { minR: -1, maxR: -1, minC: -1, maxC: -1 };
+            clearSelectionPreview();
+        }
+
+        function confirmPrice() {
+            const price = parseFloat(priceInput.value);
+            if (isNaN(price) || price < 0) return alert("请输入有效价格");
+            if (!priceColorMap[price]) {
+                priceColorMap[price] = colorPalette[colorIndex % colorPalette.length]; colorIndex++;
+            }
+            const color = priceColorMap[price];
+            for (let r = currentSelectionBox.minR; r <= currentSelectionBox.maxR; r++) {
+                for (let c = currentSelectionBox.minC; c <= currentSelectionBox.maxC; c++) {
+                    gridData[r][c].price = price; gridData[r][c].color = color;
+                    const cell = document.getElementById(`cell-${r}-${c}`);
+                    cell.style.backgroundColor = color; cell.innerText = price;
+                }
+            }
+            cancelSelection(); updateCalculations();
+        }
+
+        totalWeightInput.addEventListener('input', updateCalculations);
+
+        function updateCalculations() {
+            const totalCells = rows * cols;
+            let assignedCells = 0, totalValue = 0;
+            const groupStats = {};
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const data = gridData[r][c];
+                    if (data.price !== null) {
+                        assignedCells++; totalValue += data.price;
+                        if (!groupStats[data.price]) groupStats[data.price] = { count: 0, color: data.color };
+                        groupStats[data.price].count++;
+                    }
+                }
+            }
+            const avgPrice = assignedCells > 0 ? Math.round(totalValue / assignedCells) : 0;
+            avgPriceDisplay.innerText = avgPrice;
+            assignedRatioDisplay.innerText = `${((assignedCells / totalCells) * 100).toFixed(0)}%`;
+            const weightVal = parseFloat(totalWeightInput.value);
+            const showWeight = !isNaN(weightVal) && weightVal > 0;
+            currentCalcData.avgPrice = avgPrice; currentCalcData.details = [];
+            priceListBody.innerHTML = '';
+            document.querySelectorAll('.weight-col').forEach(el => el.style.display = showWeight ? 'table-cell' : 'none');
+            const prices = Object.keys(groupStats).map(p => parseFloat(p)).sort((a,b)=>b-a);
+            prices.forEach(price => {
+                const stat = groupStats[price];
+                const percent = ((stat.count / totalCells) * 100).toFixed(0);
+                const estWeight = showWeight ? (weightVal * (stat.count / totalCells)).toFixed(2) : null;
+                currentCalcData.details.push({ price, weight: estWeight, percent });
+                const tr = document.createElement('tr');
+                tr.className = 'border-b last:border-0';
+                tr.innerHTML = `
+                    <td class="py-2 px-2"><div class="w-4 h-4 rounded" style="background-color: ${stat.color}"></div></td>
+                    <td class="py-2 px-2 font-bold text-gray-800">¥${price}</td>
+                    <td class="py-2 px-2">${percent}%</td>
+                    ${showWeight ? `<td class="py-2 px-2 weight-col">${estWeight}t</td>` : ''}
+                `;
+                priceListBody.appendChild(tr);
+            });
+        }
+
+        function loadHistory() {
+            let history = JSON.parse(localStorage.getItem('scrap_estimator_history') || '[]');
+            const cutoff = Date.now() - 259200000;
+            history = history.filter(item => item.timestamp > cutoff);
+            localStorage.setItem('scrap_estimator_history', JSON.stringify(history));
+            return history.reverse(); 
+        }
+
+        function renderHistory() {
+            const history = loadHistory();
+            const listContainer = document.getElementById('historyList');
+            if (history.length === 0) { listContainer.innerHTML = '<div class="text-center text-gray-400 py-6 text-sm">暂无记录</div>'; return; }
+            listContainer.innerHTML = history.map(record => {
+                const detailsHtml = record.details.map(d => `<div>单价${d.price}，${d.weight ? d.weight+'吨' : ''}占比${d.percent}%</div>`).join('');
+                return `<div class="border rounded-lg bg-white shadow-sm p-3"><div class="flex justify-between" onclick="toggleAccordion(this)"><b>${record.plate || record.date}</b><span>${record.avgPrice}元</span></div><div class="hidden text-xs mt-2 border-t pt-2">${detailsHtml}</div></div>`;
+            }).join('');
+        }
+
+        function toggleAccordion(el) { el.nextElementSibling.classList.toggle('hidden'); }
+
+        function saveRecord() {
+            if (currentCalcData.details.length === 0) return alert("请先框选标价");
+            const now = new Date();
+            const record = {
+                timestamp: now.getTime(), date: `${now.getMonth() + 1}月${now.getDate()}日`,
+                plate: plateNumberInput.value.trim(), avgPrice: currentCalcData.avgPrice, details: currentCalcData.details
+            };
+            let history = JSON.parse(localStorage.getItem('scrap_estimator_history') || '[]');
+            history.push(record); localStorage.setItem('scrap_estimator_history', JSON.stringify(history));
+            renderHistory();
+        }
+
+        window.onload = _0xInitAuth;
+    </script>
+</body>
+</html>
