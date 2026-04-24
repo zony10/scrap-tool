@@ -107,8 +107,9 @@
             </header>
 
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
-                <div class="bg-white rounded-xl shadow-sm p-4 md:p-6 lg:col-span-1 flex flex-col space-y-4">
-                    <h2 class="text-base font-bold border-b pb-2">参数设置</h2>
+                <!-- 左侧：参数设置 -->
+                <div class="bg-white rounded-xl shadow-sm p-4 md:p-6 lg:col-span-1 flex flex-col space-y-4 h-fit">
+                    <h2 class="text-base font-bold border-b pb-2">网格与参数设置</h2>
                     <div class="space-y-3">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">车牌号 <span class="text-xs text-gray-400 font-normal">可选</span></label>
@@ -129,18 +130,31 @@
                             </div>
                         </div>
                     </div>
-                    <button onclick="generateGrid()" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 font-bold py-2 px-4 rounded-lg text-sm transition-colors">应用网格设置</button>
-                    <div class="pt-4 border-t mt-2">
-                        <button onclick="saveRecord()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow transition-colors flex items-center justify-center space-x-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
-                            <span>保存估算记录</span>
-                        </button>
-                        <p id="saveToast" class="text-green-600 text-xs text-center mt-2 opacity-0 transition-opacity">✅ 已保存到底部记录中</p>
-                    </div>
+                    <button onclick="generateGrid()" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 font-bold py-2 px-4 rounded-lg text-sm transition-colors mt-2">应用网格设置</button>
                 </div>
 
+                <!-- 右侧：车厢视图及计算结果 -->
                 <div class="lg:col-span-3 flex flex-col space-y-4 md:space-y-6">
-                    <div class="bg-white rounded-xl shadow-sm p-4 pt-10 pb-4 relative overflow-hidden flex flex-col justify-center min-h-[250px]">
+                    
+                    <!-- 模式切换与车厢 -->
+                    <div class="bg-white rounded-xl shadow-sm p-4 pt-4 pb-4 relative overflow-hidden flex flex-col justify-center min-h-[300px]">
+                        
+                        <!-- 模式切换栏 -->
+                        <div class="flex flex-col sm:flex-row gap-3 mb-4 items-start sm:items-center justify-between bg-gray-50 p-2 md:p-3 rounded-lg border border-gray-200">
+                            <div class="flex bg-gray-200 rounded-lg p-1 w-full sm:w-auto">
+                                <button id="modeBtnPrice" onclick="setMode('price')" class="flex-1 sm:flex-none px-4 py-1.5 text-sm font-bold rounded-md bg-white shadow-sm text-blue-600 transition-colors">单价设定</button>
+                                <button id="modeBtnThickness" onclick="setMode('thickness')" class="flex-1 sm:flex-none px-4 py-1.5 text-sm font-bold rounded-md text-gray-500 hover:text-gray-700 transition-colors">厚度设定</button>
+                            </div>
+                            <div id="thicknessControls" class="hidden flex items-center space-x-2 w-full sm:w-auto mt-2 sm:mt-0">
+                                <div class="relative flex-grow sm:flex-grow-0">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-bold">满价</span>
+                                    <input type="number" id="fullPriceInput" placeholder="请输入 (元)" class="w-full sm:w-32 border border-gray-300 rounded-md pl-10 pr-2 py-1.5 text-sm outline-none focus:border-blue-500 font-bold">
+                                </div>
+                                <button onclick="openTableSettings()" class="bg-white hover:bg-gray-100 border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md text-sm font-bold shadow-sm whitespace-nowrap">基础定价表 ⚙️</button>
+                            </div>
+                        </div>
+
+                        <!-- 车辆模型 -->
                         <div id="truckViewBox">
                             <div id="truckInner" class="px-2">
                                 <div class="flex-grow h-full relative" id="trailerContainer">
@@ -158,27 +172,38 @@
                         </div>
                     </div>
 
+                    <!-- 计算结果与保存按钮 -->
                     <div class="bg-white rounded-xl shadow-sm p-4 flex flex-col sm:flex-row gap-4">
-                        <div class="flex-shrink-0 bg-blue-50 rounded-xl p-4 flex flex-col items-center justify-center border border-blue-100 sm:w-1/3">
-                            <span class="text-blue-600 font-semibold mb-1 text-sm">加权平均价</span>
-                            <div class="flex items-baseline space-x-1">
-                                <span class="text-3xl font-extrabold text-blue-700" id="avgPriceDisplay">0</span>
-                                <span class="text-gray-500 font-medium">元</span>
+                        <div class="flex-shrink-0 flex flex-col sm:w-1/3 gap-3">
+                            <div class="bg-blue-50 rounded-xl p-4 flex flex-col items-center justify-center border border-blue-100 flex-grow">
+                                <span class="text-blue-600 font-semibold mb-1 text-sm" id="avgPriceTitle">加权平均价</span>
+                                <div class="flex items-baseline space-x-1">
+                                    <span class="text-3xl font-extrabold text-blue-700" id="avgPriceDisplay">0</span>
+                                    <span class="text-gray-500 font-medium" id="avgPriceUnit">元</span>
+                                </div>
+                                <span class="text-xs text-gray-500 mt-1">已标区域: <span id="assignedRatio">0%</span></span>
                             </div>
-                            <span class="text-xs text-gray-500 mt-1">已标区域: <span id="assignedRatio">0%</span></span>
+                            
+                            <!-- 保存按钮移至此处 -->
+                            <button onclick="saveRecord()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-xl shadow transition-colors flex items-center justify-center space-x-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                                <span>保存估算记录</span>
+                            </button>
                         </div>
-                        <div class="flex-grow overflow-x-auto">
-                            <table class="w-full text-left text-xs md:text-sm text-gray-600 min-w-[280px]">
+
+                        <!-- 详情列表 -->
+                        <div class="flex-grow overflow-x-auto border border-gray-100 rounded-xl p-1">
+                            <table class="w-full text-left text-xs md:text-sm text-gray-600 min-w-[300px]">
                                 <thead>
                                     <tr class="border-b bg-gray-50 text-gray-700">
-                                        <th class="py-2 px-2">颜色</th>
-                                        <th class="py-2 px-2">单价</th>
-                                        <th class="py-2 px-2">网格占比</th>
+                                        <th class="py-2 px-2">类型</th>
+                                        <th class="py-2 px-2">核算价格</th>
+                                        <th class="py-2 px-2">占比</th>
                                         <th class="py-2 px-2 weight-col" style="display:none;">估算重量</th>
                                     </tr>
                                 </thead>
                                 <tbody id="priceListBody">
-                                    <tr><td colspan="4" class="py-4 text-center text-gray-400">请在上方车厢内滑动框选</td></tr>
+                                    <tr><td colspan="4" class="py-6 text-center text-gray-400">请在上方车厢内滑动框选区域</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -200,7 +225,9 @@
         版权所有 &copy; 2026 zonia_fish
     </footer>
 
-    <!-- 输入价格弹窗 -->
+    <!-- ================= 弹窗集合 ================= -->
+
+    <!-- 1. 单价输入弹窗 -->
     <div id="priceModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-xl p-6 w-11/12 max-w-sm">
             <h3 class="text-lg font-bold text-gray-800 mb-1">设定废钢单价</h3>
@@ -212,6 +239,63 @@
             </div>
         </div>
     </div>
+
+    <!-- 2. 厚度选择弹窗 -->
+    <div id="thicknessModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-xl p-5 w-11/12 max-w-sm">
+            <div class="flex justify-between items-center mb-1">
+                <h3 class="text-lg font-bold text-gray-800">设定废钢厚度</h3>
+                <button onclick="cancelSelection()" class="text-gray-400 hover:text-gray-600 text-sm font-bold px-2">✕ 关闭</button>
+            </div>
+            <p class="text-xs text-gray-500 mb-4">请选择框选区域的厚度类别</p>
+            
+            <div class="grid grid-cols-4 gap-2 mb-4" id="thicknessBtnGrid">
+                <!-- 动态生成厚度按钮 -->
+            </div>
+            
+            <div class="pt-3 border-t mt-2">
+                <button onclick="openCustomThickness()" class="w-full bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-600 font-bold py-2 rounded-xl transition-colors">
+                    + 自定义厚度 (<1.0) 差价
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 自定义厚度差价输入弹窗 -->
+    <div id="customThicknessModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-11/12 max-w-sm">
+            <h3 class="text-lg font-bold text-gray-800 mb-1">自定义扣减差价 (<1.0厚度)</h3>
+            <p class="text-xs text-red-500 mb-4">无需输入负号，直接输入扣减数字即可！</p>
+            <div class="relative mb-6">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xl">-</span>
+                <input type="number" id="customDiffInput" class="w-full border-2 border-orange-300 rounded-lg pl-8 pr-4 py-3 text-xl focus:outline-none focus:border-orange-500 font-bold text-gray-800 text-center" placeholder="如: 300">
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="backToThicknessModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-2 rounded-xl">返回</button>
+                <button onclick="confirmCustomThickness()" class="flex-1 bg-orange-500 text-white font-bold py-2 rounded-xl shadow-md shadow-orange-200">确认扣减</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. 基础定价表设置弹窗 -->
+    <div id="baseTableModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-xl p-5 w-11/12 max-w-md max-h-[90vh] flex flex-col">
+            <h3 class="text-lg font-bold text-gray-800 mb-1">基础定价表设置 (映射差价)</h3>
+            <p class="text-xs text-red-500 mb-3 font-bold bg-red-50 p-2 rounded">
+                * 满价基准为0，请直接填写各厚度对应的扣减金额绝对值（无需填负号）。
+            </p>
+            
+            <div class="flex-1 overflow-y-auto pr-2 mb-4 space-y-2" id="baseTableInputs">
+                <!-- 动态生成表单 -->
+            </div>
+            
+            <div class="flex space-x-3 pt-3 border-t">
+                <button onclick="closeTableSettings()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl">取消</button>
+                <button onclick="saveTableSettings()" class="flex-1 bg-blue-500 text-white font-bold py-3 rounded-xl shadow-md">保存并应用</button>
+            </div>
+        </div>
+    </div>
+
 
     <script>
         // ==========================================
@@ -251,8 +335,7 @@
             document.getElementById('displayDeviceId').innerText = _0xDevice;
             if (localStorage.getItem('CF_AUTH_STATUS') === 'authorized_zonia') {
                 document.getElementById('authOverlay').style.display = 'none';
-                generateGrid(); 
-                renderHistory();
+                initSystem();
             }
         }
 
@@ -262,8 +345,7 @@
                 localStorage.setItem('CF_AUTH_STATUS', 'authorized_zonia');
                 alert("授权成功！欢迎使用。");
                 document.getElementById('authOverlay').style.display = 'none';
-                generateGrid();
-                renderHistory();
+                initSystem();
             } else {
                 alert("授权码错误，请核对后重试。");
             }
@@ -288,28 +370,89 @@
         }
 
         // ==========================================
-        // 主业务逻辑
+        // 主业务逻辑 (增强版)
         // ==========================================
+        
         let rows = 6, cols = 6;
         let gridData = [];
         let isSelecting = false;
         let startCell = null;
         let currentSelectionBox = { minR: -1, maxR: -1, minC: -1, maxC: -1 };
-        let currentCalcData = { avgPrice: '0', details: [] };
+        let currentCalcData = { avgPrice: '0', details: [], isDiffOnly: false };
 
-        const colorPalette = ['#fecaca','#bbf7d0','#bfdbfe','#fef08a','#e9d5ff','#fed7aa','#99f6e4','#fbcfe8','#d9f99d','#e5e7eb'];
-        let priceColorMap = {};
+        const colorPalette = ['#fecaca','#bbf7d0','#bfdbfe','#fef08a','#e9d5ff','#fed7aa','#99f6e4','#fbcfe8','#d9f99d','#e5e7eb', '#fca5a5', '#86efac', '#93c5fd', '#fde047'];
+        let colorMap = {}; // 统一管理颜色分配
         let colorIndex = 0;
+
+        // 默认的基础定价表
+        const defaultThicknessTable = {
+            '6.0': 0, '5.5': 10, '5.0': 20, '4.5': 30, '4.0': 40,
+            '3.5': 50, '3.0': 60, '2.5': 80, '2.0': 100, '1.8': 120,
+            '1.5': 160, '1.2': 200, '1.0': 220
+        };
+        // 确保顺序固定展示
+        const tableKeysOrder = ['6.0', '5.5', '5.0', '4.5', '4.0', '3.5', '3.0', '2.5', '2.0', '1.8', '1.5', '1.2', '1.0'];
+        let thicknessTable = {};
+
+        // 模式控制
+        let currentMode = 'price'; // 'price' or 'thickness'
 
         const gridContainer = document.getElementById('grid');
         const priceModal = document.getElementById('priceModal');
+        const thicknessModal = document.getElementById('thicknessModal');
+        const customThicknessModal = document.getElementById('customThicknessModal');
+        const baseTableModal = document.getElementById('baseTableModal');
+        
         const priceInput = document.getElementById('priceInput');
+        const customDiffInput = document.getElementById('customDiffInput');
+        const fullPriceInput = document.getElementById('fullPriceInput');
+        
         const avgPriceDisplay = document.getElementById('avgPriceDisplay');
         const assignedRatioDisplay = document.getElementById('assignedRatio');
         const priceListBody = document.getElementById('priceListBody');
         const totalWeightInput = document.getElementById('totalWeight');
         const plateNumberInput = document.getElementById('plateNumber');
 
+        function initSystem() {
+            loadThicknessTable();
+            setMode('price');
+            generateGrid(); 
+            renderHistory();
+            
+            // 绑定满价实时计算
+            fullPriceInput.addEventListener('input', updateCalculations);
+            totalWeightInput.addEventListener('input', updateCalculations);
+        }
+
+        function loadThicknessTable() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('scrap_base_table_v2'));
+                thicknessTable = saved ? saved : {...defaultThicknessTable};
+            } catch(e) {
+                thicknessTable = {...defaultThicknessTable};
+            }
+        }
+
+        // ================= UI与模式控制 =================
+        function setMode(mode) {
+            currentMode = mode;
+            const btnP = document.getElementById('modeBtnPrice');
+            const btnT = document.getElementById('modeBtnThickness');
+            const tControls = document.getElementById('thicknessControls');
+
+            if (mode === 'price') {
+                btnP.className = "flex-1 sm:flex-none px-4 py-1.5 text-sm font-bold rounded-md bg-white shadow-sm text-blue-600 transition-colors";
+                btnT.className = "flex-1 sm:flex-none px-4 py-1.5 text-sm font-bold rounded-md text-gray-500 hover:text-gray-700 transition-colors";
+                tControls.classList.add('hidden');
+            } else {
+                btnT.className = "flex-1 sm:flex-none px-4 py-1.5 text-sm font-bold rounded-md bg-white shadow-sm text-blue-600 transition-colors";
+                btnP.className = "flex-1 sm:flex-none px-4 py-1.5 text-sm font-bold rounded-md text-gray-500 hover:text-gray-700 transition-colors";
+                tControls.classList.remove('hidden');
+            }
+            updateCalculations();
+        }
+
+        // ================= 网格生成与操作 =================
         function generateGrid() {
             rows = parseInt(document.getElementById('gridRows').value) || 6;
             cols = parseInt(document.getElementById('gridCols').value) || 6;
@@ -320,7 +463,7 @@
             for (let r = 0; r < rows; r++) {
                 gridData[r] = [];
                 for (let c = 0; c < cols; c++) {
-                    gridData[r][c] = { price: null, color: null };
+                    gridData[r][c] = { type: null, val: null, diff: null, color: null };
                     const cell = document.createElement('div');
                     cell.className = 'grid-cell';
                     cell.dataset.row = r; cell.dataset.col = c;
@@ -333,7 +476,11 @@
             updateCalculations();
         }
 
-        function resetGrid() { priceColorMap = {}; colorIndex = 0; generateGrid(); }
+        function resetGrid() { 
+            colorMap = {}; 
+            colorIndex = 0; 
+            generateGrid(); 
+        }
 
         function handlePointerDown(e) {
             e.preventDefault();
@@ -359,7 +506,13 @@
         function handlePointerUp(e) {
             if (!isSelecting) return;
             isSelecting = false;
-            if (currentSelectionBox.minR !== -1) showModal();
+            if (currentSelectionBox.minR !== -1) {
+                if (currentMode === 'price') {
+                    showPriceModal();
+                } else {
+                    showThicknessModal();
+                }
+            }
         }
 
         document.addEventListener('mouseup', handlePointerUp);
@@ -388,106 +541,326 @@
             document.querySelectorAll('.selected-preview').forEach(c => c.classList.remove('selected-preview'));
         }
 
-        function showModal() {
-            priceInput.value = ''; priceModal.classList.remove('hidden');
-            setTimeout(() => priceInput.focus(), 100);
-        }
-
         function cancelSelection() {
             priceModal.classList.add('hidden');
+            thicknessModal.classList.add('hidden');
+            customThicknessModal.classList.add('hidden');
+            baseTableModal.classList.add('hidden');
             currentSelectionBox = { minR: -1, maxR: -1, minC: -1, maxC: -1 };
             clearSelectionPreview();
+        }
+
+        // ================= 弹窗与赋值逻辑 =================
+        
+        function getColor(key) {
+            if (!colorMap[key]) {
+                colorMap[key] = colorPalette[colorIndex % colorPalette.length]; 
+                colorIndex++;
+            }
+            return colorMap[key];
+        }
+
+        // 1. 单价设定
+        function showPriceModal() {
+            priceInput.value = ''; 
+            priceModal.classList.remove('hidden');
+            setTimeout(() => priceInput.focus(), 100);
         }
 
         function confirmPrice() {
             const price = parseFloat(priceInput.value);
             if (isNaN(price) || price < 0) return alert("请输入有效价格");
-            if (!priceColorMap[price]) {
-                priceColorMap[price] = colorPalette[colorIndex % colorPalette.length]; colorIndex++;
-            }
-            const color = priceColorMap[price];
-            for (let r = currentSelectionBox.minR; r <= currentSelectionBox.maxR; r++) {
-                for (let c = currentSelectionBox.minC; c <= currentSelectionBox.maxC; c++) {
-                    gridData[r][c].price = price; gridData[r][c].color = color;
-                    const cell = document.getElementById(`cell-${r}-${c}`);
-                    cell.style.backgroundColor = color; cell.innerText = price;
-                }
-            }
-            cancelSelection(); updateCalculations();
+            const color = getColor(`P_${price}`);
+            applyToGrid('price', price, null, color, price);
+            cancelSelection(); 
+            updateCalculations();
         }
 
-        totalWeightInput.addEventListener('input', updateCalculations);
+        // 2. 厚度设定
+        function showThicknessModal() {
+            const grid = document.getElementById('thicknessBtnGrid');
+            grid.innerHTML = '';
+            tableKeysOrder.forEach(key => {
+                const diff = thicknessTable[key];
+                const btn = document.createElement('button');
+                btn.className = "bg-gray-50 border border-gray-200 rounded-lg py-2 text-center hover:bg-blue-50 hover:border-blue-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400";
+                btn.innerHTML = `<div class="font-bold text-gray-800 text-sm">${key}</div><div class="text-[10px] text-gray-500">${diff === 0 ? '满价' : '-'+diff}</div>`;
+                btn.onclick = () => confirmThickness(key, diff);
+                grid.appendChild(btn);
+            });
+            thicknessModal.classList.remove('hidden');
+        }
 
-        function updateCalculations() {
-            const totalCells = rows * cols;
-            let assignedCells = 0, totalValue = 0;
-            const groupStats = {};
+        function confirmThickness(thickVal, diffAbs) {
+            const color = getColor(`T_${thickVal}`);
+            applyToGrid('thickness', thickVal, -Math.abs(diffAbs), color, thickVal);
+            cancelSelection();
+            updateCalculations();
+        }
+
+        // 3. 自定义厚度 (<1.0)
+        function openCustomThickness() {
+            thicknessModal.classList.add('hidden');
+            customDiffInput.value = '';
+            customThicknessModal.classList.remove('hidden');
+            setTimeout(() => customDiffInput.focus(), 100);
+        }
+
+        function backToThicknessModal() {
+            customThicknessModal.classList.add('hidden');
+            thicknessModal.classList.remove('hidden');
+        }
+
+        function confirmCustomThickness() {
+            const diffAbs = parseFloat(customDiffInput.value);
+            if (isNaN(diffAbs) || diffAbs < 0) return alert("请输入有效的扣减数字 (正数)");
+            const diff = -Math.abs(diffAbs);
+            const color = getColor(`TC_${diff}`); // 根据差价值分配颜色
+            applyToGrid('thickness', '<1.0', diff, color, '<1.0');
+            cancelSelection();
+            updateCalculations();
+        }
+
+        // 通用写入网格
+        function applyToGrid(type, val, diff, color, displayText) {
+            for (let r = currentSelectionBox.minR; r <= currentSelectionBox.maxR; r++) {
+                for (let c = currentSelectionBox.minC; c <= currentSelectionBox.maxC; c++) {
+                    gridData[r][c] = { type, val, diff, color };
+                    const cell = document.getElementById(`cell-${r}-${c}`);
+                    cell.style.backgroundColor = color; 
+                    cell.innerText = displayText;
+                }
+            }
+        }
+
+        // ================= 基础定价表设置 =================
+        function openTableSettings() {
+            const container = document.getElementById('baseTableInputs');
+            container.innerHTML = '';
+            tableKeysOrder.forEach(key => {
+                const val = thicknessTable[key] || 0;
+                const row = document.createElement('div');
+                row.className = "flex items-center justify-between bg-gray-50 p-2 rounded border border-gray-100";
+                row.innerHTML = `
+                    <span class="font-bold text-gray-700 w-16">${key} 厚</span>
+                    <div class="relative flex-1 max-w-[150px]">
+                        <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 font-bold">-</span>
+                        <input type="number" id="base_tb_${key}" value="${val}" class="w-full border border-gray-300 rounded px-2 pl-6 py-1 text-sm outline-none focus:border-blue-500 font-bold">
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+            baseTableModal.classList.remove('hidden');
+        }
+
+        function closeTableSettings() {
+            baseTableModal.classList.add('hidden');
+        }
+
+        function saveTableSettings() {
+            tableKeysOrder.forEach(key => {
+                const input = document.getElementById(`base_tb_${key}`);
+                let v = parseFloat(input.value);
+                if (isNaN(v) || v < 0) v = 0;
+                thicknessTable[key] = v;
+            });
+            localStorage.setItem('scrap_base_table_v2', JSON.stringify(thicknessTable));
+            alert("基础定价表已保存！");
+            closeTableSettings();
+            
+            // 同步更新网格中已存在的厚度差价
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < cols; c++) {
-                    const data = gridData[r][c];
-                    if (data.price !== null) {
-                        assignedCells++; totalValue += data.price;
-                        if (!groupStats[data.price]) groupStats[data.price] = { count: 0, color: data.color };
-                        groupStats[data.price].count++;
+                    const cell = gridData[r][c];
+                    if (cell.type === 'thickness' && cell.val !== '<1.0') {
+                        cell.diff = -Math.abs(thicknessTable[cell.val] || 0);
                     }
                 }
             }
-            const avgPrice = assignedCells > 0 ? Math.round(totalValue / assignedCells) : 0;
-            avgPriceDisplay.innerText = avgPrice;
+            updateCalculations();
+        }
+
+        // ================= 核心核算逻辑 =================
+        function updateCalculations() {
+            const totalCells = rows * cols;
+            let assignedCells = 0;
+            let totalSum = 0;
+            
+            const groupStats = {};
+            const fullPriceVal = parseFloat(fullPriceInput.value);
+            const hasFullPrice = !isNaN(fullPriceVal) && fullPriceVal > 0;
+            
+            let hasThicknessCell = false;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cell = gridData[r][c];
+                    if (!cell.type) continue;
+                    
+                    assignedCells++;
+                    let key, sortValue, label, isDiff = false;
+
+                    if (cell.type === 'price') {
+                        key = 'P_' + cell.val;
+                        sortValue = cell.val;
+                        label = `单价 ${cell.val}`;
+                    } else if (cell.type === 'thickness') {
+                        hasThicknessCell = true;
+                        key = cell.val === '<1.0' ? 'TC_' + cell.diff : 'T_' + cell.val;
+                        
+                        if (hasFullPrice) {
+                            sortValue = fullPriceVal + cell.diff; // diff 已经是负数
+                            label = `厚${cell.val} (¥${sortValue})`;
+                        } else {
+                            sortValue = cell.diff;
+                            label = `厚${cell.val} (差价 ${cell.diff})`;
+                            isDiff = true;
+                        }
+                    }
+
+                    if (!groupStats[key]) {
+                        groupStats[key] = { count: 0, color: cell.color, label, sortValue, isDiff };
+                    }
+                    groupStats[key].count++;
+                    totalSum += sortValue;
+                }
+            }
+
+            // 判断输出类型：如果存在厚度但没有满价，则全局显示为平均差价
+            const isDiffGlobal = hasThicknessCell && !hasFullPrice;
+            const avgVal = assignedCells > 0 ? Math.round(totalSum / assignedCells) : 0;
+            
+            document.getElementById('avgPriceTitle').innerText = isDiffGlobal ? "加权平均差价" : "加权平均价";
+            avgPriceDisplay.innerText = avgVal;
+            document.getElementById('avgPriceUnit').innerText = isDiffGlobal ? "" : "元";
+            
             assignedRatioDisplay.innerText = `${((assignedCells / totalCells) * 100).toFixed(0)}%`;
+            
             const weightVal = parseFloat(totalWeightInput.value);
             const showWeight = !isNaN(weightVal) && weightVal > 0;
-            currentCalcData.avgPrice = avgPrice; currentCalcData.details = [];
+            
+            currentCalcData.avgPrice = avgVal;
+            currentCalcData.isDiffOnly = isDiffGlobal;
+            currentCalcData.details = [];
+            
             priceListBody.innerHTML = '';
             document.querySelectorAll('.weight-col').forEach(el => el.style.display = showWeight ? 'table-cell' : 'none');
-            const prices = Object.keys(groupStats).map(p => parseFloat(p)).sort((a,b)=>b-a);
-            prices.forEach(price => {
-                const stat = groupStats[price];
+
+            // 按价格倒序排列
+            const groupsArray = Object.values(groupStats).sort((a,b) => b.sortValue - a.sortValue);
+            
+            groupsArray.forEach(stat => {
                 const percent = ((stat.count / totalCells) * 100).toFixed(0);
                 const estWeight = showWeight ? (weightVal * (stat.count / totalCells)).toFixed(2) : null;
-                currentCalcData.details.push({ price, weight: estWeight, percent });
+                
+                currentCalcData.details.push({ 
+                    label: stat.label, 
+                    weight: estWeight, 
+                    percent: percent,
+                    priceVal: stat.sortValue,
+                    isDiff: stat.isDiff
+                });
+
                 const tr = document.createElement('tr');
-                tr.className = 'border-b last:border-0';
+                tr.className = 'border-b last:border-0 hover:bg-gray-50';
                 tr.innerHTML = `
-                    <td class="py-2 px-2"><div class="w-4 h-4 rounded" style="background-color: ${stat.color}"></div></td>
-                    <td class="py-2 px-2 font-bold text-gray-800">¥${price}</td>
+                    <td class="py-2 px-2 flex items-center gap-2">
+                        <div class="w-4 h-4 rounded shadow-sm border border-black/10" style="background-color: ${stat.color}"></div>
+                        <span class="font-medium text-gray-700">${stat.label.split(' (')[0]}</span>
+                    </td>
+                    <td class="py-2 px-2 font-bold ${stat.isDiff ? 'text-orange-600' : 'text-blue-700'}">
+                        ${stat.isDiff ? stat.sortValue : '¥' + stat.sortValue}
+                    </td>
                     <td class="py-2 px-2">${percent}%</td>
-                    ${showWeight ? `<td class="py-2 px-2 weight-col">${estWeight}t</td>` : ''}
+                    ${showWeight ? `<td class="py-2 px-2 weight-col font-medium text-gray-500">${estWeight}t</td>` : ''}
                 `;
                 priceListBody.appendChild(tr);
             });
+
+            if (groupsArray.length === 0) {
+                priceListBody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-gray-400">请在上方车厢内滑动框选区域</td></tr>';
+            }
         }
 
+        // ================= 历史记录存储与渲染 =================
         function loadHistory() {
-            let history = JSON.parse(localStorage.getItem('scrap_estimator_history') || '[]');
-            const cutoff = Date.now() - 259200000;
+            let history = JSON.parse(localStorage.getItem('scrap_estimator_history_v2') || '[]');
+            const cutoff = Date.now() - 259200000; // 3天前
             history = history.filter(item => item.timestamp > cutoff);
-            localStorage.setItem('scrap_estimator_history', JSON.stringify(history));
+            localStorage.setItem('scrap_estimator_history_v2', JSON.stringify(history));
             return history.reverse(); 
         }
 
         function renderHistory() {
             const history = loadHistory();
             const listContainer = document.getElementById('historyList');
-            if (history.length === 0) { listContainer.innerHTML = '<div class="text-center text-gray-400 py-6 text-sm">暂无记录</div>'; return; }
+            if (history.length === 0) { 
+                listContainer.innerHTML = '<div class="text-center text-gray-400 py-6 text-sm">暂无记录</div>'; 
+                return; 
+            }
             listContainer.innerHTML = history.map(record => {
-                const detailsHtml = record.details.map(d => `<div>单价${d.price}，${d.weight ? d.weight+'吨' : ''}占比${d.percent}%</div>`).join('');
-                return `<div class="border rounded-lg bg-white shadow-sm p-3"><div class="flex justify-between" onclick="toggleAccordion(this)"><b>${record.plate || record.date}</b><span>${record.avgPrice}元</span></div><div class="hidden text-xs mt-2 border-t pt-2">${detailsHtml}</div></div>`;
+                const detailsHtml = record.details.map(d => {
+                    const weightStr = d.weight ? `，重${d.weight}吨` : '';
+                    return `<div class="py-1 border-b border-gray-100 last:border-0 flex justify-between">
+                        <span>${d.label}${weightStr}</span>
+                        <span class="font-bold text-gray-600">${d.percent}%</span>
+                    </div>`;
+                }).join('');
+                
+                const avgText = record.isDiffOnly ? `平均差价 ${record.avgPrice}` : `¥${record.avgPrice}`;
+                const titleText = record.plate ? record.plate : `估算记录`;
+                
+                return `
+                <div class="border rounded-xl bg-white shadow-sm p-3 hover:border-blue-300 transition-colors">
+                    <div class="flex justify-between items-center cursor-pointer" onclick="toggleAccordion(this)">
+                        <div>
+                            <span class="font-bold text-gray-800">${titleText}</span>
+                            <span class="text-[10px] text-gray-400 ml-2 bg-gray-100 px-1.5 py-0.5 rounded">${record.date}</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="font-bold ${record.isDiffOnly ? 'text-orange-600' : 'text-blue-600'}">${avgText}</span>
+                            <svg class="w-4 h-4 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                    </div>
+                    <div class="hidden text-xs mt-3 bg-gray-50 rounded-lg p-2 border border-gray-100">
+                        ${detailsHtml}
+                    </div>
+                </div>`;
             }).join('');
         }
 
-        function toggleAccordion(el) { el.nextElementSibling.classList.toggle('hidden'); }
+        function toggleAccordion(el) { 
+            const content = el.nextElementSibling;
+            const svg = el.querySelector('svg');
+            content.classList.toggle('hidden'); 
+            if (content.classList.contains('hidden')) {
+                svg.classList.remove('rotate-180');
+            } else {
+                svg.classList.add('rotate-180');
+            }
+        }
 
         function saveRecord() {
-            if (currentCalcData.details.length === 0) return alert("请先框选标价");
+            if (currentCalcData.details.length === 0) return alert("请先在车厢网格内框选设定区域");
+            
             const now = new Date();
+            const dateStr = `${now.getMonth() + 1}月${now.getDate()}日 ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            
             const record = {
-                timestamp: now.getTime(), date: `${now.getMonth() + 1}月${now.getDate()}日`,
-                plate: plateNumberInput.value.trim(), avgPrice: currentCalcData.avgPrice, details: currentCalcData.details
+                timestamp: now.getTime(), 
+                date: dateStr,
+                plate: plateNumberInput.value.trim(), 
+                avgPrice: currentCalcData.avgPrice, 
+                isDiffOnly: currentCalcData.isDiffOnly,
+                details: currentCalcData.details
             };
-            let history = JSON.parse(localStorage.getItem('scrap_estimator_history') || '[]');
-            history.push(record); localStorage.setItem('scrap_estimator_history', JSON.stringify(history));
+            
+            let history = JSON.parse(localStorage.getItem('scrap_estimator_history_v2') || '[]');
+            history.push(record); 
+            localStorage.setItem('scrap_estimator_history_v2', JSON.stringify(history));
+            
             renderHistory();
+            alert("✅ 记录保存成功！请在下方历史记录查看。");
         }
 
         window.onload = _0xInitAuth;
