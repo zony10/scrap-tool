@@ -89,7 +89,7 @@
         <div class="mt-6 text-xs text-gray-500 text-center">
             版权所有 &copy; 2026 zonia_fish
             <div class="mt-3">
-                <p class="text-sm text-red-500 font-bold bg-red-50 px-4 py-2 rounded-full border border-red-100 inline-block shadow-sm">定价：9.9元，付款后联系分发人获取授权码</p>
+                <p class="text-sm text-red-500 font-bold bg-red-50 px-4 py-2 rounded-full border border-red-100 inline-block shadow-sm">定价：16元，付款后联系分发人获取授权码</p>
             </div>
         </div>
     </div>
@@ -249,7 +249,7 @@
             </div>
             <p class="text-xs text-gray-500 mb-4">请选择框选区域的厚度类别</p>
             
-            <div class="grid grid-cols-4 gap-2 mb-4" id="thicknessBtnGrid">
+            <div class="space-y-2 mb-4" id="thicknessBtnGrid">
                 <!-- 动态生成厚度按钮 -->
             </div>
             
@@ -415,6 +415,13 @@
 
         function initSystem() {
             loadThicknessTable();
+            
+            // 恢复上次保存的网格设置
+            const savedRows = localStorage.getItem('scrap_grid_rows');
+            const savedCols = localStorage.getItem('scrap_grid_cols');
+            if (savedRows) document.getElementById('gridRows').value = savedRows;
+            if (savedCols) document.getElementById('gridCols').value = savedCols;
+
             setMode('price');
             generateGrid(); 
             renderHistory();
@@ -422,6 +429,14 @@
             // 绑定满价实时计算
             fullPriceInput.addEventListener('input', updateCalculations);
             totalWeightInput.addEventListener('input', updateCalculations);
+
+            // 绑定回车键(前往键)事件
+            priceInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') confirmPrice();
+            });
+            customDiffInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') confirmCustomThickness();
+            });
         }
 
         function loadThicknessTable() {
@@ -456,6 +471,11 @@
         function generateGrid() {
             rows = parseInt(document.getElementById('gridRows').value) || 6;
             cols = parseInt(document.getElementById('gridCols').value) || 6;
+            
+            // 记录网格设置，下次打开保持一致
+            localStorage.setItem('scrap_grid_rows', rows);
+            localStorage.setItem('scrap_grid_cols', cols);
+
             gridContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
             gridContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
             gridContainer.innerHTML = '';
@@ -578,16 +598,34 @@
 
         // 2. 厚度设定
         function showThicknessModal() {
-            const grid = document.getElementById('thicknessBtnGrid');
-            grid.innerHTML = '';
-            tableKeysOrder.forEach(key => {
-                const diff = thicknessTable[key];
-                const btn = document.createElement('button');
-                btn.className = "bg-gray-50 border border-gray-200 rounded-lg py-2 text-center hover:bg-blue-50 hover:border-blue-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400";
-                btn.innerHTML = `<div class="font-bold text-gray-800 text-sm">${key}</div><div class="text-[10px] text-gray-500">${diff === 0 ? '满价' : '-'+diff}</div>`;
-                btn.onclick = () => confirmThickness(key, diff);
-                grid.appendChild(btn);
+            const container = document.getElementById('thicknessBtnGrid');
+            container.innerHTML = '';
+            
+            // 按照厚度大类分组分行显示
+            const thicknessGroups = [
+                { keys: ['6.0'] },
+                { keys: ['5.5', '5.0'] },
+                { keys: ['4.5', '4.0'] },
+                { keys: ['3.5', '3.0'] },
+                { keys: ['2.5', '2.0'] },
+                { keys: ['1.8', '1.5', '1.2', '1.0'] }
+            ];
+
+            thicknessGroups.forEach(group => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = "grid grid-cols-4 gap-2";
+                
+                group.keys.forEach(key => {
+                    const diff = thicknessTable[key];
+                    const btn = document.createElement('button');
+                    btn.className = "bg-gray-50 border border-gray-200 rounded-lg py-2 text-center hover:bg-blue-50 hover:border-blue-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400";
+                    btn.innerHTML = `<div class="font-bold text-gray-800 text-sm">${key}</div><div class="text-[10px] text-gray-500">${diff === 0 ? '满价' : '-'+diff}</div>`;
+                    btn.onclick = () => confirmThickness(key, diff);
+                    rowDiv.appendChild(btn);
+                });
+                container.appendChild(rowDiv);
             });
+            
             thicknessModal.classList.remove('hidden');
         }
 
@@ -784,7 +822,27 @@
 
         // ================= 历史记录存储与渲染 =================
         function loadHistory() {
-            let history = JSON.parse(localStorage.getItem('scrap_estimator_history_v2') || '[]');
+            let history = JSON.parse(localStorage.getItem('scrap_estimator_history_v2') || 'null');
+            
+            // 兼容并无缝恢复旧版本的历史记录数据
+            if (!history) {
+                const oldHistory = JSON.parse(localStorage.getItem('scrap_estimator_history') || '[]');
+                history = oldHistory.map(old => ({
+                    timestamp: old.timestamp,
+                    date: old.date,
+                    plate: old.plate,
+                    avgPrice: old.avgPrice,
+                    isDiffOnly: false,
+                    details: old.details.map(d => ({
+                        label: `单价 ${d.price}`,
+                        weight: d.weight,
+                        percent: d.percent,
+                        priceVal: d.price,
+                        isDiff: false
+                    }))
+                }));
+            }
+
             const cutoff = Date.now() - 259200000; // 3天前
             history = history.filter(item => item.timestamp > cutoff);
             localStorage.setItem('scrap_estimator_history_v2', JSON.stringify(history));
@@ -808,14 +866,16 @@
                 }).join('');
                 
                 const avgText = record.isDiffOnly ? `平均差价 ${record.avgPrice}` : `¥${record.avgPrice}`;
-                const titleText = record.plate ? record.plate : `估算记录`;
+                // 没有车牌时直接显示具体日期和时间
+                const titleText = record.plate ? record.plate : record.date;
+                const dateTag = record.plate ? `<span class="text-[10px] text-gray-400 ml-2 bg-gray-100 px-1.5 py-0.5 rounded">${record.date}</span>` : '';
                 
                 return `
                 <div class="border rounded-xl bg-white shadow-sm p-3 hover:border-blue-300 transition-colors">
                     <div class="flex justify-between items-center cursor-pointer" onclick="toggleAccordion(this)">
                         <div>
                             <span class="font-bold text-gray-800">${titleText}</span>
-                            <span class="text-[10px] text-gray-400 ml-2 bg-gray-100 px-1.5 py-0.5 rounded">${record.date}</span>
+                            ${dateTag}
                         </div>
                         <div class="flex items-center space-x-2">
                             <span class="font-bold ${record.isDiffOnly ? 'text-orange-600' : 'text-blue-600'}">${avgText}</span>
@@ -859,8 +919,8 @@
             history.push(record); 
             localStorage.setItem('scrap_estimator_history_v2', JSON.stringify(history));
             
+            // 无弹窗提示，直接重新渲染列表
             renderHistory();
-            alert("✅ 记录保存成功！请在下方历史记录查看。");
         }
 
         window.onload = _0xInitAuth;
