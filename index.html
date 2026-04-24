@@ -20,6 +20,16 @@
         }
         .main-content { flex: 1; }
         
+        /* 隐藏原生数字输入框的上下箭头，保证UI美观 */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield; /* Firefox */
+        }
+
         /* 授权遮罩层 */
         #authOverlay {
             position: fixed; inset: 0; background: #f3f4f6; z-index: 9999;
@@ -146,10 +156,17 @@
                                 <button id="modeBtnThickness" onclick="setMode('thickness')" class="flex-1 sm:flex-none px-4 py-1.5 text-sm font-bold rounded-md text-gray-500 hover:text-gray-700 transition-colors">厚度设定</button>
                             </div>
                             <div id="thicknessControls" class="hidden flex items-center space-x-2 w-full sm:w-auto mt-2 sm:mt-0">
-                                <div class="relative flex-grow sm:flex-grow-0">
-                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-bold">满价</span>
-                                    <input type="number" id="fullPriceInput" placeholder="请输入 (元)" class="w-full sm:w-32 border border-gray-300 rounded-md pl-10 pr-2 py-1.5 text-sm outline-none focus:border-blue-500 font-bold">
+                                
+                                <!-- 修改为带增减按钮的满价输入框 -->
+                                <div class="relative flex-grow sm:flex-grow-0 flex items-stretch">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-bold pointer-events-none">满价</span>
+                                    <input type="number" id="fullPriceInput" placeholder="请输入 (元)" class="w-full sm:w-32 border border-gray-300 border-r-0 rounded-l-md pl-10 pr-2 py-1.5 text-sm outline-none focus:border-blue-500 font-bold">
+                                    <div class="flex flex-col border border-gray-300 rounded-r-md overflow-hidden bg-gray-50 w-7 flex-shrink-0">
+                                        <button onclick="adjustFullPrice(10)" class="flex-1 flex items-center justify-center text-gray-600 hover:bg-blue-100 hover:text-blue-600 border-b border-gray-300 focus:outline-none active:bg-blue-200 text-[10px] leading-none" title="加10元">▲</button>
+                                        <button onclick="adjustFullPrice(-10)" class="flex-1 flex items-center justify-center text-gray-600 hover:bg-blue-100 hover:text-blue-600 focus:outline-none active:bg-blue-200 text-[10px] leading-none" title="减10元">▼</button>
+                                    </div>
                                 </div>
+                                
                                 <button onclick="openTableSettings()" class="bg-white hover:bg-gray-100 border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md text-sm font-bold shadow-sm whitespace-nowrap">基础定价表 ⚙️</button>
                             </div>
                         </div>
@@ -227,7 +244,7 @@
 
     <!-- ================= 弹窗集合 ================= -->
 
-    <!-- 1. 单价输入弹窗 (利用 form 触发表单提交，激活前往键) -->
+    <!-- 1. 单价输入弹窗 -->
     <div id="priceModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-xl p-6 w-11/12 max-w-sm">
             <h3 class="text-lg font-bold text-gray-800 mb-1">设定废钢单价</h3>
@@ -236,7 +253,6 @@
                 <input type="number" id="priceInput" enterkeyhint="go" class="w-full border-2 border-blue-300 rounded-lg px-4 py-3 text-xl focus:outline-none focus:border-blue-500 font-bold text-gray-800 mb-6 text-center" placeholder="如: 2100">
                 <div class="flex space-x-3">
                     <button type="button" onclick="cancelSelection()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-2 rounded-xl">取消</button>
-                    <!-- 将原本的 onclick 改为 type="submit"，关联输入法的"前往"键 -->
                     <button type="submit" class="flex-1 bg-blue-500 text-white font-bold py-2 rounded-xl shadow-md shadow-blue-200">确认</button>
                 </div>
             </form>
@@ -264,7 +280,7 @@
         </div>
     </div>
 
-    <!-- 3. 自定义厚度差价输入弹窗 (利用 form 触发表单提交，激活前往键) -->
+    <!-- 3. 自定义厚度差价输入弹窗 -->
     <div id="customThicknessModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-xl p-6 w-11/12 max-w-sm">
             <h3 class="text-lg font-bold text-gray-800 mb-1">自定义扣减差价 (<1.0厚度)</h3>
@@ -276,7 +292,6 @@
                 </div>
                 <div class="flex space-x-3">
                     <button type="button" onclick="backToThicknessModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-2 rounded-xl">返回</button>
-                    <!-- 修改为 type="submit" -->
                     <button type="submit" class="flex-1 bg-orange-500 text-white font-bold py-2 rounded-xl shadow-md shadow-orange-200">确认扣减</button>
                 </div>
             </form>
@@ -427,14 +442,23 @@
             if (savedRows) document.getElementById('gridRows').value = savedRows;
             if (savedCols) document.getElementById('gridCols').value = savedCols;
 
-            // 【非常关键修复】：一定要先执行 generateGrid 建立内部网格数据(gridData)
-            // 之后再调用 setMode，否则 setMode 触发数据循环时找不到网格数据就会抛出异常，导致页面变成白板！
+            // 恢复上次保存的满价
+            const savedFullPrice = localStorage.getItem('scrap_full_price');
+            if (savedFullPrice !== null) {
+                fullPriceInput.value = savedFullPrice;
+            }
+
+            // 先执行 generateGrid 建立内部网格数据
             generateGrid(); 
             setMode('price');
             renderHistory();
             
-            // 绑定满价实时计算
-            fullPriceInput.addEventListener('input', updateCalculations);
+            // 绑定满价实时计算，并监听保存
+            fullPriceInput.addEventListener('input', () => {
+                localStorage.setItem('scrap_full_price', fullPriceInput.value);
+                updateCalculations();
+            });
+
             totalWeightInput.addEventListener('input', updateCalculations);
 
             // 保留电脑端的按键监听
@@ -444,6 +468,20 @@
             customDiffInput.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') confirmCustomThickness();
             });
+        }
+
+        // ================= 新增：调节满价 =================
+        function adjustFullPrice(delta) {
+            let currentVal = parseFloat(fullPriceInput.value);
+            if (isNaN(currentVal)) {
+                currentVal = 0; // 如果原先为空，默认从0开始算
+            }
+            let newVal = currentVal + delta;
+            if (newVal < 0) newVal = 0; // 防止调整为负数
+            
+            fullPriceInput.value = newVal;
+            localStorage.setItem('scrap_full_price', newVal); // 记忆保存
+            updateCalculations(); // 更新表格计算结果
         }
 
         function loadThicknessTable() {
@@ -935,6 +973,3 @@
     </script>
 </body>
 </html>
-
-
-```
