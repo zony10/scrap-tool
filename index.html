@@ -184,7 +184,7 @@
                                 <span class="text-xs text-gray-500 mt-1">已标区域: <span id="assignedRatio">0%</span></span>
                             </div>
                             
-                            <!-- 保存按钮移至此处 -->
+                            <!-- 保存按钮 -->
                             <button onclick="saveRecord()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-xl shadow transition-colors flex items-center justify-center space-x-2">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
                                 <span>保存估算记录</span>
@@ -227,16 +227,19 @@
 
     <!-- ================= 弹窗集合 ================= -->
 
-    <!-- 1. 单价输入弹窗 -->
+    <!-- 1. 单价输入弹窗 (利用 form 触发表单提交，激活前往键) -->
     <div id="priceModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-xl p-6 w-11/12 max-w-sm">
             <h3 class="text-lg font-bold text-gray-800 mb-1">设定废钢单价</h3>
             <p class="text-xs text-gray-500 mb-4">输入选中区域的价格 (元)</p>
-            <input type="number" id="priceInput" class="w-full border-2 border-blue-300 rounded-lg px-4 py-3 text-xl focus:outline-none focus:border-blue-500 font-bold text-gray-800 mb-6 text-center" placeholder="如: 2100">
-            <div class="flex space-x-3">
-                <button onclick="cancelSelection()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-2 rounded-xl">取消</button>
-                <button onclick="confirmPrice()" class="flex-1 bg-blue-500 text-white font-bold py-2 rounded-xl shadow-md shadow-blue-200">确认</button>
-            </div>
+            <form onsubmit="confirmPrice(); return false;" class="m-0 p-0">
+                <input type="number" id="priceInput" enterkeyhint="go" class="w-full border-2 border-blue-300 rounded-lg px-4 py-3 text-xl focus:outline-none focus:border-blue-500 font-bold text-gray-800 mb-6 text-center" placeholder="如: 2100">
+                <div class="flex space-x-3">
+                    <button type="button" onclick="cancelSelection()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-2 rounded-xl">取消</button>
+                    <!-- 将原本的 onclick 改为 type="submit"，关联输入法的"前往"键 -->
+                    <button type="submit" class="flex-1 bg-blue-500 text-white font-bold py-2 rounded-xl shadow-md shadow-blue-200">确认</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -261,19 +264,22 @@
         </div>
     </div>
 
-    <!-- 3. 自定义厚度差价输入弹窗 -->
+    <!-- 3. 自定义厚度差价输入弹窗 (利用 form 触发表单提交，激活前往键) -->
     <div id="customThicknessModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-xl p-6 w-11/12 max-w-sm">
             <h3 class="text-lg font-bold text-gray-800 mb-1">自定义扣减差价 (<1.0厚度)</h3>
             <p class="text-xs text-red-500 mb-4">无需输入负号，直接输入扣减数字即可！</p>
-            <div class="relative mb-6">
-                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xl">-</span>
-                <input type="number" id="customDiffInput" class="w-full border-2 border-orange-300 rounded-lg pl-8 pr-4 py-3 text-xl focus:outline-none focus:border-orange-500 font-bold text-gray-800 text-center" placeholder="如: 300">
-            </div>
-            <div class="flex space-x-3">
-                <button onclick="backToThicknessModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-2 rounded-xl">返回</button>
-                <button onclick="confirmCustomThickness()" class="flex-1 bg-orange-500 text-white font-bold py-2 rounded-xl shadow-md shadow-orange-200">确认扣减</button>
-            </div>
+            <form onsubmit="confirmCustomThickness(); return false;" class="m-0 p-0">
+                <div class="relative mb-6">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xl">-</span>
+                    <input type="number" id="customDiffInput" enterkeyhint="go" class="w-full border-2 border-orange-300 rounded-lg pl-8 pr-4 py-3 text-xl focus:outline-none focus:border-orange-500 font-bold text-gray-800 text-center" placeholder="如: 300">
+                </div>
+                <div class="flex space-x-3">
+                    <button type="button" onclick="backToThicknessModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-2 rounded-xl">返回</button>
+                    <!-- 修改为 type="submit" -->
+                    <button type="submit" class="flex-1 bg-orange-500 text-white font-bold py-2 rounded-xl shadow-md shadow-orange-200">确认扣减</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -295,7 +301,6 @@
             </div>
         </div>
     </div>
-
 
     <script>
         // ==========================================
@@ -422,15 +427,17 @@
             if (savedRows) document.getElementById('gridRows').value = savedRows;
             if (savedCols) document.getElementById('gridCols').value = savedCols;
 
-            setMode('price');
+            // 【非常关键修复】：一定要先执行 generateGrid 建立内部网格数据(gridData)
+            // 之后再调用 setMode，否则 setMode 触发数据循环时找不到网格数据就会抛出异常，导致页面变成白板！
             generateGrid(); 
+            setMode('price');
             renderHistory();
             
             // 绑定满价实时计算
             fullPriceInput.addEventListener('input', updateCalculations);
             totalWeightInput.addEventListener('input', updateCalculations);
 
-            // 绑定回车键(前往键)事件
+            // 保留电脑端的按键监听
             priceInput.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') confirmPrice();
             });
@@ -593,6 +600,8 @@
             const color = getColor(`P_${price}`);
             applyToGrid('price', price, null, color, price);
             cancelSelection(); 
+            // 提交完成后主动让输入框失去焦点，收起原生键盘
+            priceInput.blur();
             updateCalculations();
         }
 
@@ -656,6 +665,7 @@
             const color = getColor(`TC_${diff}`); // 根据差价值分配颜色
             applyToGrid('thickness', '<1.0', diff, color, '<1.0');
             cancelSelection();
+            customDiffInput.blur();
             updateCalculations();
         }
 
@@ -733,7 +743,7 @@
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < cols; c++) {
                     const cell = gridData[r][c];
-                    if (!cell.type) continue;
+                    if (!cell || !cell.type) continue;
                     
                     assignedCells++;
                     let key, sortValue, label, isDiff = false;
@@ -866,7 +876,6 @@
                 }).join('');
                 
                 const avgText = record.isDiffOnly ? `平均差价 ${record.avgPrice}` : `¥${record.avgPrice}`;
-                // 没有车牌时直接显示具体日期和时间
                 const titleText = record.plate ? record.plate : record.date;
                 const dateTag = record.plate ? `<span class="text-[10px] text-gray-400 ml-2 bg-gray-100 px-1.5 py-0.5 rounded">${record.date}</span>` : '';
                 
@@ -919,7 +928,6 @@
             history.push(record); 
             localStorage.setItem('scrap_estimator_history_v2', JSON.stringify(history));
             
-            // 无弹窗提示，直接重新渲染列表
             renderHistory();
         }
 
@@ -927,3 +935,6 @@
     </script>
 </body>
 </html>
+
+
+```
