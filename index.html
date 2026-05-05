@@ -194,9 +194,11 @@
                         <div class="flex-shrink-0 flex flex-col sm:w-1/3 gap-3">
                             <div class="bg-blue-50 rounded-xl p-4 flex flex-col items-center justify-center border border-blue-100 flex-grow">
                                 <span class="text-blue-600 font-semibold mb-1 text-sm" id="avgPriceTitle">加权平均价</span>
-                                <div class="flex items-baseline space-x-1">
+                                <div class="flex items-baseline space-x-1 relative">
                                     <span class="text-3xl font-extrabold text-blue-700" id="avgPriceDisplay">0</span>
                                     <span class="text-gray-500 font-medium" id="avgPriceUnit">元</span>
+                                    <!-- 新增差价显示元素 -->
+                                    <span class="text-sm font-bold text-orange-500 hidden pl-1" id="avgDiffDisplay"></span>
                                 </div>
                                 <span class="text-xs text-gray-500 mt-1">已标区域: <span id="assignedRatio">0%</span></span>
                             </div>
@@ -398,7 +400,7 @@
         let isSelecting = false;
         let startCell = null;
         let currentSelectionBox = { minR: -1, maxR: -1, minC: -1, maxC: -1 };
-        let currentCalcData = { avgPrice: '0', details: [], isDiffOnly: false };
+        let currentCalcData = { avgPrice: '0', avgDiff: null, details: [], isDiffOnly: false };
 
         const colorPalette = ['#fecaca','#bbf7d0','#bfdbfe','#fef08a','#e9d5ff','#fed7aa','#99f6e4','#fbcfe8','#d9f99d','#e5e7eb', '#fca5a5', '#86efac', '#93c5fd', '#fde047'];
         let colorMap = {}; // 统一管理颜色分配
@@ -428,6 +430,7 @@
         const fullPriceInput = document.getElementById('fullPriceInput');
         
         const avgPriceDisplay = document.getElementById('avgPriceDisplay');
+        const avgDiffDisplay = document.getElementById('avgDiffDisplay'); // 新增的差价显示DOM
         const assignedRatioDisplay = document.getElementById('assignedRatio');
         const priceListBody = document.getElementById('priceListBody');
         const totalWeightInput = document.getElementById('totalWeight');
@@ -816,6 +819,17 @@
             const isDiffGlobal = hasThicknessCell && !hasFullPrice;
             const avgVal = assignedCells > 0 ? Math.round(totalSum / assignedCells) : 0;
             
+            // 计算整体平均差价
+            let avgDiff = null;
+            if (hasThicknessCell && hasFullPrice) {
+                // 如果既有满价又有厚度设置，计算加权平均价和满价的差值
+                avgDiff = assignedCells > 0 ? Math.round(avgVal - fullPriceVal) : 0;
+                avgDiffDisplay.innerText = `(差价 ${avgDiff})`;
+                avgDiffDisplay.classList.remove('hidden');
+            } else {
+                avgDiffDisplay.classList.add('hidden');
+            }
+
             document.getElementById('avgPriceTitle').innerText = isDiffGlobal ? "加权平均差价" : "加权平均价";
             avgPriceDisplay.innerText = avgVal;
             document.getElementById('avgPriceUnit').innerText = isDiffGlobal ? "" : "元";
@@ -826,6 +840,7 @@
             const showWeight = !isNaN(weightVal) && weightVal > 0;
             
             currentCalcData.avgPrice = avgVal;
+            currentCalcData.avgDiff = avgDiff; // 将计算出的差价保存到全局数据中
             currentCalcData.isDiffOnly = isDiffGlobal;
             currentCalcData.details = [];
             
@@ -880,6 +895,7 @@
                     date: old.date,
                     plate: old.plate,
                     avgPrice: old.avgPrice,
+                    avgDiff: null, // 旧版没有此字段
                     isDiffOnly: false,
                     details: old.details.map(d => ({
                         label: `单价 ${d.price}`,
@@ -914,6 +930,13 @@
                 }).join('');
                 
                 const avgText = record.isDiffOnly ? `平均差价 ${record.avgPrice}` : `¥${record.avgPrice}`;
+                
+                // 如果历史记录中存在整体差价，且不是纯差价模式(即有满价)，则显示差价后缀
+                let diffText = '';
+                if (record.avgDiff !== undefined && record.avgDiff !== null && !record.isDiffOnly) {
+                    diffText = ` <span class="text-xs text-orange-500 font-normal ml-1">(差价 ${record.avgDiff})</span>`;
+                }
+
                 const titleText = record.plate ? record.plate : record.date;
                 const dateTag = record.plate ? `<span class="text-[10px] text-gray-400 ml-2 bg-gray-100 px-1.5 py-0.5 rounded">${record.date}</span>` : '';
                 
@@ -925,7 +948,9 @@
                             ${dateTag}
                         </div>
                         <div class="flex items-center space-x-2">
-                            <span class="font-bold ${record.isDiffOnly ? 'text-orange-600' : 'text-blue-600'}">${avgText}</span>
+                            <span class="font-bold ${record.isDiffOnly ? 'text-orange-600' : 'text-blue-600'}">
+                                ${avgText}${diffText}
+                            </span>
                             <svg class="w-4 h-4 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </div>
                     </div>
@@ -958,6 +983,7 @@
                 date: dateStr,
                 plate: plateNumberInput.value.trim(), 
                 avgPrice: currentCalcData.avgPrice, 
+                avgDiff: currentCalcData.avgDiff, // 保存核算时的差价
                 isDiffOnly: currentCalcData.isDiffOnly,
                 details: currentCalcData.details
             };
